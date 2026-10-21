@@ -4,7 +4,7 @@ Tasty Screen is a data-modeling project for analyzing food references in movies.
 
 This repository currently contains the database schema, illustrative sample data, and analytical SQL queries created for the Data Architecture & Modeling project.
 
-📄 **Report:** [`report/Report.pdf`](report/Report.pdf)
+📄 **Report:** ```report/ReportX.pdf``` with X is the number of version.
 
 ## Repository contents
 
@@ -19,7 +19,7 @@ This repository currently contains the database schema, illustrative sample data
 |   ├── 01_ddl_star_schema.sql
 |   ├── 02_dml_sample_data.sql
 |   └── 03_business_queries.sql
-└── report/Report.pdf 
+└── report/ReportX.pdf 
 ```
 
 | File | Description |
