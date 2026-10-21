@@ -120,6 +120,19 @@ The proposed full platform uses:
 
 Source datasets and movie frames are not included in this repository.
 
+## Building the food detector 
+We do not train a model from scratch. We fine-tune a YOLO detector that is already pre-trained on COCO (which already knows 10 food classes such as pizza, sandwich and cake, plus cups, bottles and wine glasses), so 1,500 annotated frames are enough.
+
+1. Frame selection. 1,500 frames from clips where the text branch found food, spread across genres, plus ≈15% frames without food (negatives).
+2. Pre-annotation. The COCO model proposes boxes automatically; annotators only correct them and add missing classes, which cuts labelling time to roughly 30–60 s per frame (≈4–8 h per member).
+3. Annotation. Each member labels 500 frames in Label Studio with 13 classes: pizza, burger/sandwich, hot dog, fries, salad/vegetables, fruit, bread/pastry, cake/dessert, meat dish, pasta/noodles, hot drink, alcoholic drink, soft drink/bottle. Classes with too few examples are merged into a broader category.
+4. Quality control. 50 frames are labelled by all three members to measure inter-annotator agreement (boxes matching at Intersection over Union ≥ 0.5), following a shared labelling guide.
+5. Split. 70/15/15 train/validation/test, split by clip rather than by frame, because consecutive frames of a clip are almost identical and would leak into the test set.
+6. Fine-tuning and evaluation. Ultralytics YOLO on a Google Colab GPU (around one hour). We report mAP@0.5 and per-class precision on the test set and choose the confidence threshold from it.
+7. Inference. The registered model version is applied to all sampled frames; every result carries its model_version (see dim_detection_method).
+    
+To avoid biasing visual statistics towards clips that already mention food, inference also runs on a random control sample of clips.
+
 ## Team
 
 | Member | Contribution |
