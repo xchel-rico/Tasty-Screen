@@ -1,0 +1,7 @@
+# Python 3.12: data loading, PostgreSQL access, and text matching.
+huggingface-hub==0.36.2
+pandas==2.3.3
+pyarrow==23.0.1
+psycopg[binary]==3.3.6
+python-dotenv==1.2.4
+spacy==3.8.18

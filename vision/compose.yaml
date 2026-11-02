@@ -1,0 +1,11 @@
+name: tasty-screen-vision
+
+services:
+  vision:
+    build:
+      context: .
+    init: true
+    working_dir: /workspace/vision
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    volumes:
+      - .:/workspace/vision

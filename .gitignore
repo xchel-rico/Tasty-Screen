@@ -4,3 +4,7 @@ frames/
 *.mp4
 __pycache__/
 .env
+.venv/
+vision/runs/
+vision/models/
+*.pt

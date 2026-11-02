@@ -1,0 +1,22 @@
+# Local Docker dataset layout. Change this path for Colab or another machine.
+# Supply annotated images and labels before training; no dataset is bundled.
+path: /workspace/vision/data/food
+train: images/train
+val: images/val
+test: images/test
+
+# Keep IDs stable between annotation, training, evaluation, and inference.
+names:
+  0: pizza
+  1: burger/sandwich
+  2: hot dog
+  3: fries
+  4: salad/vegetables
+  5: fruit
+  6: bread/pastry
+  7: cake/dessert
+  8: meat dish
+  9: pasta/noodles
+  10: hot drink
+  11: alcoholic drink
+  12: soft drink/bottle

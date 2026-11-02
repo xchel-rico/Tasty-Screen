@@ -1,0 +1,11 @@
+# Starting configuration; tune on validation data and record each experiment.
+model: yolo11n.pt
+data: configs/dataset.yaml
+epochs: 100
+imgsz: 640
+batch: 8
+seed: 42
+workers: 2
+device: cpu
+project: runs
+name: food-v1
