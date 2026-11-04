@@ -5,6 +5,8 @@
 -- =====================================================================
 
 DROP TABLE IF EXISTS fact_food_reference;
+DROP TABLE IF EXISTS frame_detection;
+DROP TABLE IF EXISTS frame;
 DROP TABLE IF EXISTS dim_scene;
 DROP TABLE IF EXISTS dim_movie;
 DROP TABLE IF EXISTS dim_food;
@@ -21,19 +23,6 @@ CREATE TABLE dim_movie (
     decade             VARCHAR(5)   NOT NULL,            -- e.g. '1990s'
     genre              VARCHAR(50),                      -- primary genre
     CONSTRAINT uq_movie UNIQUE (source_movie_name, release_year)
-);
-
--- ---------------------------------------------------------------------
--- dim_scene — static (a published clip never changes)
--- ---------------------------------------------------------------------
-CREATE TABLE dim_scene (
-    scene_key          SERIAL       PRIMARY KEY,
-    clip_link          VARCHAR(255) NOT NULL UNIQUE,     -- yt_clip_link (natural key)
-    clip_title         VARCHAR(255),                     -- yt_clip_title
-    movie_key          INT          NOT NULL REFERENCES dim_movie (movie_key),
-    scene_description  TEXT,                             -- movie_scene
-    subtitle_text      TEXT,                             -- subtitles
-    n_frames_sampled   INT          CHECK (n_frames_sampled >= 0)  -- NULL if not processed visually
 );
 
 -- ---------------------------------------------------------------------
@@ -64,6 +53,52 @@ CREATE TABLE dim_detection_method (
     valid_to              DATE,                            -- NULL while current
     is_current            BOOLEAN      NOT NULL,
     CONSTRAINT uq_method_version UNIQUE (method_name, model_version)
+);
+
+-- ---------------------------------------------------------------------
+-- dim_scene — static (a published clip never changes)
+-- ---------------------------------------------------------------------
+CREATE TABLE dim_scene (
+    scene_key          SERIAL       PRIMARY KEY,
+    clip_link          VARCHAR(255) NOT NULL UNIQUE,     -- yt_clip_link (natural key)
+    clip_title         VARCHAR(255),                     -- yt_clip_title
+    movie_key          INT          NOT NULL REFERENCES dim_movie (movie_key),
+    scene_description  TEXT,                             -- movie_scene
+    subtitle_text      TEXT,                             -- subtitles
+    n_frames_sampled   INT          CHECK (n_frames_sampled >= 0)  -- NULL if not processed visually
+);
+
+-- ---------------------------------------------------------------------
+-- frame
+-- ---------------------------------------------------------------------
+CREATE TABLE frame (
+    frame_id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    scene_key      INT NOT NULL,
+    timestamp_sec  DECIMAL(10,3),
+    image_path     VARCHAR(500), -- If local implementation
+    CONSTRAINT fk_frame_scene
+        FOREIGN KEY (scene_key) REFERENCES dim_scene (scene_key)
+);
+
+-- ---------------------------------------------------------------------
+-- frame_detection
+-- ---------------------------------------------------------------------
+CREATE TABLE frame_detection (
+    detection_id  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    frame_id      BIGINT NOT NULL,
+    food_key      INT NOT NULL,
+    method_key    INT NOT NULL,
+    confidence    DECIMAL(5,4),
+    x             DECIMAL(10,4),
+    y             DECIMAL(10,4),
+    w             DECIMAL(10,4),
+    h             DECIMAL(10,4),
+    CONSTRAINT fk_detection_frame
+        FOREIGN KEY (frame_id)   REFERENCES frame (frame_id),
+    CONSTRAINT fk_detection_food
+        FOREIGN KEY (food_key)   REFERENCES dim_food (food_key),
+    CONSTRAINT fk_detection_method
+        FOREIGN KEY (method_key) REFERENCES dim_detection_method (method_key)
 );
 
 -- ---------------------------------------------------------------------

@@ -79,3 +79,24 @@ Catalogue corrections overwrite; SR Legacy is a frozen release, so changes only 
 | `is_current` | BOOLEAN | Current-version flag |
 
 Retraining the detector or changing the threshold adds a new row. Facts keep the version that produced them, so results are reproducible and versions can be compared.
+
+## frame — Type 1
+| Column | Type | Description |
+|---|---|---|
+| `frame_id` | BIGINT, PK | Surrogate key |
+| `scene_key` | INT, FK → dim_scene | Scene (CinePile clip) |
+| `timestamp_sec` | DECIMAL(10,3) | second where the frame appears in the clip |
+| `image_path` | VARCHAR(500) | Path where the frame is stocked if local implementation |
+
+## frame_detection — Type 1
+| Column | Type | Description |
+|---|---|---|
+| `detection_id` | BIGINT, PK | Surrogate key |
+| `frame_id` | INT, FK → frame | Frame |
+| `food_key` | INT, FK → dim_food | Canonical food |
+| `method_key` | INT, FK → dim_detection_method | Detection method and version |
+| `confidence` | DECIMAL(5, 4) | Percentage of confidence of food detection |
+| `x` | DECIMAL(10,4) | x coordinate |
+| `y` | DECIMAL(10,4) | y coordinate |
+| `w` | DECIMAL(10,4) | width |
+| `h` | DECIMAL(10,4) | height |

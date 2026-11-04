@@ -1,8 +1,7 @@
 -- =====================================================================
--- Illustrative sample data (hand-written, NOT real CinePile records).
+-- Illustrative sample data (NOT real CinePile records).
 -- Movie titles, clip links and texts are placeholders that only show the
 -- shape of the data so that the demo queries return something.
--- Real samples: run scripts/make_samples.py.
 -- =====================================================================
 
 INSERT INTO dim_movie (source_movie_name, movie_title, release_year, decade, genre) VALUES
