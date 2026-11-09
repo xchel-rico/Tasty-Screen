@@ -15,7 +15,7 @@ services:
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
       AIRFLOW__CORE__PARALLELISM: "2"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: >-
-        python -c 'import os; from sqlalchemy.engine import URL; print(URL.create("postgresql+psycopg2", username="airflow", password=os.environ["AIRFLOW_DB_PASSWORD"], host="airflow-postgres", port=5432, database="airflow").render_as_string(hide_password=False))'
+        python -c 'import os; from sqlalchemy.engine import URL; print(URL.create("postgresql+psycopg2", username="airflow", password=os.environ["AIRFLOW_DB_PASSWORD"], host="airflow-postgres", port=5432, database="airflow").render_as_string(hide_password=False), end="")'
       AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow_local}
       PGHOST: postgres
       PGPORT: "5432"
