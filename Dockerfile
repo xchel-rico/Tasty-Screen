@@ -1,3 +1,5 @@
+FROM denoland/deno:bin-2.5.6 AS javascript
+
 FROM python:3.12.16-slim-bookworm AS development
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -5,10 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends libgomp1 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
+COPY --from=javascript /deno /usr/local/bin/deno
 COPY requirements.txt /opt/requirements/requirements.txt
 RUN python -m pip install --no-cache-dir -r /opt/requirements/requirements.txt \
     && python -m pip check

@@ -2,7 +2,7 @@
 
 Tasty Screen is a data-modeling project for analyzing food references in movies. It brings together food mentioned in subtitles, described in scenes, and detected in video frames within a PostgreSQL star schema.
 
-The main project covers the data engineering pipeline, PostgreSQL analytical model, and project results. It currently implements the schema, illustrative sample data, and analytical SQL queries. Python ingestion, orchestration, and reporting are planned.
+The main project covers the data engineering pipeline, PostgreSQL analytical model, and project results. It currently implements the schema, illustrative sample data, analytical SQL queries, a dbt view, and an Airflow demo workflow. Automated source ingestion and reporting are still planned.
 
 Model training, annotation, detector evaluation, and vision-specific setup live in [`vision/`](vision/README.md).
 
@@ -16,6 +16,15 @@ Model training, annotation, detector evaluation, and vision-specific setup live 
 ├── Dockerfile
 ├── README.md
 ├── requirements.txt
+├── airflow/
+│   ├── Dockerfile
+│   ├── README.md
+│   └── dags/warehouse_demo.py
+├── dbt/
+│   ├── dbt_project.yml
+│   ├── profiles.yml
+│   └── models/
+├── scripts/check_warehouse.py
 ├── docs/
 │   ├── architecture.png
 │   ├── star_schema.png
@@ -39,11 +48,14 @@ Model training, annotation, detector evaluation, and vision-specific setup live 
 
 | File | Description |
 |---|---|
-| `compose.yaml` | Runs PostgreSQL and the Python data engineering development environment |
+| `compose.yaml` | Runs the Python environment, warehouse PostgreSQL, local Airflow, and a separate Airflow metadata PostgreSQL |
 | `Dockerfile` | Builds the Python 3.12 data engineering development image |
 | `.dockerignore` | Excludes credentials, local environments, and datasets from image builds |
 | `.env.example` | Example local database credentials and host port |
-| `requirements.txt` | Python dependencies with exact versions for data loading and text matching |
+| `requirements.txt` | Pinned Python dependencies for ingestion, text matching, video downloads, and dbt |
+| `airflow/` | Airflow image and a paused weekly warehouse/dbt demo workflow |
+| `dbt/` | PostgreSQL profile and the `analytics.current_food_references` view |
+| `scripts/check_warehouse.py` | Reads warehouse table counts using the standard PostgreSQL environment variables |
 | `vision/` | Independent model-training project with its own Compose file, Dockerfile, dependencies, and configuration |
 | `sql/01_ddl_star_schema.sql` | Creates the PostgreSQL fact and dimension tables, constraints, and indexes |
 | `sql/02_dml_sample_data.sql` | Inserts fictional sample records for testing and demonstration |
@@ -59,15 +71,15 @@ The architecture has three paths: CinePile text produces `MENTION` and `DESCRIBE
 - **Silver** — cleaned and processed: one row per clip, food found in text (`MENTION`, `DESCRIBED`) and in frames (`VISUAL`), normalised to canonical foods, with quality checks.
 - **Gold** — star schema in PostgreSQL, built and tested with dbt, read by PowerBI.
 
-In the proposed platform, a weekly **Airflow** DAG runs every step in order, services run in **Docker Compose**, and the detector is fine-tuned on a **Google Colab** GPU. The root Compose configuration provides PostgreSQL and the Python data engineering environment. Model training runs independently using `vision/compose.yaml`.
+In the proposed platform, a weekly **Airflow** DAG runs every step in order, services run in **Docker Compose**, and the detector is fine-tuned on a **Google Colab** GPU. The root Compose configuration provides the warehouse database, Python development tools, and local Airflow with its own metadata database. Model training runs independently using `vision/compose.yaml`.
 
-> Airflow, dbt, visual-model training, and Power BI are proposed parts of the complete platform; this repository currently implements only the SQL model and demonstration queries.
+> The Airflow demo checks the existing warehouse and builds a dbt view. Full ingestion/normalization, detector training, and Power BI reporting remain to be implemented.
 
 ## Data engineering scope
 
 The pipeline will ingest CinePile and USDA data, retain raw source records, extract food references from text, and normalize both text evidence and the versioned detections supplied by the vision workspace. It will apply quality checks, aggregate references to the scene/food/evidence/method grain, and load the PostgreSQL dimensions and fact table.
 
-The SQL model and example queries are implemented. Automated ingestion, detection-output loading, dbt transformations/tests, Airflow scheduling, and dashboards still need implementation. The [vision handoff](vision/README.md#handoff-to-the-data-engineering-pipeline) describes the proposed detection records and the pipeline's responsibility for turning frame detections into scene-level facts.
+The SQL model, example queries, a dbt view, and a paused weekly Airflow demo are implemented. Automated ingestion, detection-output loading, comprehensive warehouse transformations/tests, and dashboards still need implementation. The [vision handoff](vision/README.md#handoff-to-the-data-engineering-pipeline) describes the proposed detection records and the pipeline's responsibility for turning frame detections into scene-level facts.
 
 ## Data model
 
@@ -95,7 +107,7 @@ Repeated references at the same grain are stored in `occurrence_count`. Detectio
 
 ### Python dependencies and exact versions
 
-The Dockerfile uses the [official Python image](https://hub.docker.com/_/python), with Python **3.12.16** on Debian Bookworm. The repository currently contains SQL rather than Python pipeline scripts; this environment is ready for implementing ingestion, data cleaning, text matching, and warehouse loading.
+The Dockerfile uses the [official Python image](https://hub.docker.com/_/python), with Python **3.12.16** on Debian Bookworm. The development image installs the pipeline libraries, FFmpeg, and Deno for video processing and YouTube JavaScript challenges. Airflow uses its own official image and installs the same pipeline tools in a separate virtual environment.
 
 Data engineering dependencies are listed directly in `requirements.txt` with exact versions. Docker installs them with pip, which resolves their indirect dependencies automatically; this is not a complete lockfile. Training dependencies are maintained separately in [`vision/requirements.txt`](vision/requirements.txt).
 
@@ -107,10 +119,12 @@ Data engineering dependencies are listed directly in `requirements.txt` with exa
 | `psycopg[binary]` | Query PostgreSQL and load rows from Python |
 | [`python-dotenv`](https://pypi.org/project/python-dotenv/) | Read local connection settings from `.env` |
 | `spacy` | Tokenize subtitles/descriptions and match food aliases with `PhraseMatcher` |
+| `yt-dlp[default]` | Download source videos, with the YouTube challenge solver included |
+| `dbt-core` / `dbt-postgres` | Build PostgreSQL analytical views and future warehouse transformations |
 
 For basic phrase matching, `spacy.blank("en")` provides a tokenizer without downloading a trained language model.
 
-Airflow, dbt, and Label Studio should be configured separately when their services are implemented. They are not part of this Python environment or the current Compose service.
+Airflow **3.3.2** is installed through `apache/airflow:3.3.2-python3.12`, not through the root requirements. Its pipeline tasks use an isolated virtual environment so the pipeline libraries do not change Airflow's own dependencies. Label Studio is not installed; annotation setup belongs to the independent vision project.
 
 ## Running with Docker
 
@@ -124,7 +138,9 @@ docker compose up -d --build --wait
 
 If `.env` already exists, edit it instead of copying over it. On Linux/WSL, set `LOCAL_UID` and `LOCAL_GID` in `.env` to the output of `id -u` and `id -g` if they differ from 1000. This makes files created in the mounted project folder belong to your local user.
 
-Compose builds the `python` service from the Dockerfile and starts PostgreSQL using its [official image](https://hub.docker.com/_/postgres). The Python service starts after PostgreSQL is healthy, following [Compose dependency ordering](https://docs.docker.com/compose/how-tos/startup-order/). `--wait` waits until services are running or healthy before returning.
+Compose starts four services: `python`, warehouse `postgres`, `airflow`, and metadata `airflow-postgres`. Airflow runs in [standalone development mode](https://airflow.apache.org/docs/apache-airflow/3.3.2/start.html), starting its scheduler, DAG processor, API server, and triggerer in one container. The Python service waits for the warehouse; Airflow waits for both databases. `--wait` waits for the configured health checks. Allow extra time and memory for the first Airflow startup.
+
+The setup is for local development. Airflow is exposed only on localhost at `http://localhost:8080` (or `AIRFLOW_PORT` from `.env`). It automatically initializes its metadata database. See [Airflow setup and login](airflow/README.md) for the generated admin password and workflow commands. If `.env` predates this setup, the Airflow settings use the defaults from `.env.example` until you add them.
 
 On the first startup, PostgreSQL runs `01_ddl_star_schema.sql` followed by `02_dml_sample_data.sql`. The database contains 3 movies, 4 scenes, 5 foods, 4 detection methods, and 11 food-reference rows.
 
@@ -148,7 +164,35 @@ docker compose exec python python -c 'import psycopg; conn = psycopg.connect(); 
 
 This prints `11` for the initial demo data. Inside Docker, use the service name `postgres` and port `5432`; the host port setting in `.env` is for clients outside Docker.
 
-The [vision project](vision/README.md) has its own Compose stack, dependencies, and setup. Root startup runs only `python` and `postgres`; it does not build, start, or configure vision services.
+The [vision project](vision/README.md) has its own Compose stack, dependencies, and setup. Root startup includes the data engineering and Airflow services; it does not build, start, or configure vision services.
+
+### Download videos and extract frames
+
+The development container includes [yt-dlp](https://github.com/yt-dlp/yt-dlp#installation), its JavaScript challenge solver, Deno, FFmpeg, and FFprobe. `yt_clip_link` is source metadata rather than a Python package. To download an individual source video, replace the URL placeholder:
+
+```bash
+docker compose exec python yt-dlp --no-playlist --write-info-json -o 'data/bronze/videos/%(id)s.%(ext)s' 'YOUTUBE_URL'
+```
+
+Preserve the CinePile clip boundaries and original metadata when processing a downloaded video; a parent video URL alone does not identify the clip's start/end timestamps. Batch ingestion, retries, and source-to-clip manifests are still to be implemented. FFmpeg can extract frames from a local clip after creating its output directory:
+
+```bash
+docker compose exec python mkdir -p frames/clip_001
+docker compose exec python ffmpeg -i data/bronze/videos/clip_001.mp4 -vf fps=1 frames/clip_001/frame_%06d.jpg
+```
+
+Replace the example input filename with your actual local clip. These commands run only when you invoke them; Docker startup does not download videos.
+
+### Build the dbt analytical view
+
+The tracked dbt profile reads the same `PG*` environment variables as Python. It writes to the separate `analytics` schema, leaving the SQL-managed tables in `public`:
+
+```bash
+docker compose exec python dbt debug --project-dir dbt --profiles-dir dbt
+docker compose exec python dbt build --project-dir dbt --profiles-dir dbt
+```
+
+The first model, `analytics.current_food_references`, joins food and method metadata to fact rows and filters to current method versions. It contains 10 rows with the initial sample data. The rest of the warehouse transformations and data tests still need implementation.
 
 ### Update dependencies
 
@@ -182,11 +226,11 @@ docker compose down
 
 The independent vision stack is stopped separately by running `docker compose down` from `vision/`.
 
-`docker compose down` keeps the named `postgres_data` volume. Starting the service again reuses the data; initialization scripts run only when the volume is empty. Changing SQL files or credentials in `.env` does not update an existing database automatically.
+`docker compose down` keeps the warehouse `postgres_data` volume, Airflow metadata `airflow_postgres_data`, and Airflow logs/configuration/login state in `airflow_home`. Starting the service again reuses the data; initialization scripts run only when the volume is empty. Changing SQL files or credentials in `.env` does not update an existing database automatically.
 
 ### Resetting the demo database
 
-The following commands **delete all data in the Compose database volume** and reload the schema and samples:
+The following commands **delete the warehouse data, Airflow metadata/history, and Airflow logs/configuration/login state**. They then reinitialize both databases and reload the warehouse schema and samples:
 
 ```bash
 docker compose down --volumes

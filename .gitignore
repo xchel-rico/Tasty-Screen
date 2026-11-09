@@ -8,3 +8,7 @@ __pycache__/
 vision/runs/
 vision/models/
 *.pt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml

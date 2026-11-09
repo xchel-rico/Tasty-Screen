@@ -1,0 +1,8 @@
+name: tasty_screen
+version: "1.0.0"
+config-version: 2
+profile: tasty_screen
+model-paths: [models]
+models:
+  tasty_screen:
+    +materialized: view

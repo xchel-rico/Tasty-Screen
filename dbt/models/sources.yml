@@ -1,0 +1,8 @@
+version: 2
+sources:
+  - name: warehouse
+    schema: public
+    tables:
+      - name: fact_food_reference
+      - name: dim_food
+      - name: dim_detection_method

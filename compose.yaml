@@ -1,4 +1,61 @@
 services:
+  airflow:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    init: true
+    user: "${LOCAL_UID:-1000}:0"
+    command: standalone
+    ports:
+      - "127.0.0.1:${AIRFLOW_PORT:-8080}:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__PARALLELISM: "2"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: >-
+        python -c 'import os; from sqlalchemy.engine import URL; print(URL.create("postgresql+psycopg2", username="airflow", password=os.environ["AIRFLOW_DB_PASSWORD"], host="airflow-postgres", port=5432, database="airflow").render_as_string(hide_password=False))'
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow_local}
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-tasty_screen}
+      PGUSER: ${POSTGRES_USER:-tasty_screen}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+    volumes:
+      - airflow_home:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - .:/workspace
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; h = json.load(urllib.request.urlopen('http://localhost:8080/api/v2/monitor/health', timeout=5)); assert all(h[k]['status'] == 'healthy' for k in ('metadatabase', 'scheduler', 'dag_processor'))"
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 120s
+
+  airflow-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow_local}
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "airflow", "-d", "airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   python:
     build:
       context: .
@@ -40,3 +97,5 @@ services:
 
 volumes:
   postgres_data:
+  airflow_postgres_data:
+  airflow_home:

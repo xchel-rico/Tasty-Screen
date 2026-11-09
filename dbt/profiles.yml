@@ -1,0 +1,12 @@
+tasty_screen:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'postgres') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      dbname: "{{ env_var('PGDATABASE', 'tasty_screen') }}"
+      user: "{{ env_var('PGUSER', 'tasty_screen') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      schema: analytics
+      threads: 2
